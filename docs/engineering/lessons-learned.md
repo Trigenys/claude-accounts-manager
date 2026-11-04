@@ -17,3 +17,12 @@
 - **Résolution** : interrogation d'un résolveur public (1.1.1.1), parsing tolérant à la locale et au CRLF.
 - **Prévention** : le plan affiche l'IP résolue publiquement, à comparer à l'IP du serveur avant l'apply.
 - **Leçon** : un contrôle d'état distant ne doit pas dépendre du réseau du poste qui l'exécute.
+
+## 2026-11-04 — Copie de travail en CRLF : patch scripté et empreintes faussés
+
+- **Contexte** : un correctif scripté de `site/scripts/deploy.sh` a échoué (motif introuvable) et les empreintes locales du relais ne pouvaient pas égaler celles du VPS.
+- **Cause racine** : Git sous Windows extrait les fichiers en CRLF ; le VPS reçoit et hache des fichiers LF.
+- **Classification** : environnement / hypothèse implicite sur les fins de ligne.
+- **Résolution** : modifications par remplacement exact tolérant ; le déploiement normalise en LF (`tr -d '\r'`) avant de hacher et d'envoyer le relais et l'unité systemd.
+- **Prévention** : le second `--plan` après un apply doit annoncer « inchangé » pour le relais, sinon la normalisation a régressé.
+- **Leçon** : toute comparaison d'état entre le poste et un serveur doit porter sur un contenu normalisé, jamais sur les octets de la copie de travail.

@@ -28,6 +28,14 @@ pub struct Notice {
     pub body: String,
 }
 
+/// The notification for a reset (desktop now, phones through the relay schedule).
+pub fn notice(p: &Pending) -> Notice {
+    Notice {
+        title: format!("{} · {}", p.account, p.window),
+        body: "Quota réinitialisé : de nouveau disponible à 100 %.".into(),
+    }
+}
+
 /// Upcoming resets keyed by `<account id>/<window>`.
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Tracker {
@@ -93,11 +101,20 @@ impl Tracker {
         due.into_iter()
             .filter_map(|k| self.pending.remove(&k))
             .filter(|p| now - p.resets_at <= GRACE_SECS)
-            .map(|p| Notice {
-                title: format!("{} · {}", p.account, p.window),
-                body: "Quota réinitialisé : de nouveau disponible à 100 %.".into(),
-            })
+            .map(|p| notice(&p))
             .collect()
+    }
+
+    /// Upcoming resets with their `<account id>/<window>` key, soonest first.
+    pub fn upcoming(&self, now: i64) -> Vec<(String, Pending)> {
+        let mut v: Vec<_> = self
+            .pending
+            .iter()
+            .filter(|(_, p)| p.resets_at > now)
+            .map(|(k, p)| (k.clone(), p.clone()))
+            .collect();
+        v.sort_by_key(|(_, p)| p.resets_at);
+        v
     }
 
     /// Drops the accounts that no longer exist.

@@ -48,3 +48,14 @@ Le script :
 - ne touche à aucun autre site, au pare-feu ni aux conteneurs.
 
 Une seconde exécution sans changement n'écrit rien.
+
+## Application téléphone et relais push
+
+- `app/` (page) et `public/app/` (service worker, manifeste, icônes) sont publiés sous `/app/` ;
+  la PWA reçoit les notifications Web Push et garde le dernier relevé dans IndexedDB.
+- `relay/cam_relay.py` : relais d'association et planificateur des notifications de réinitialisation
+  (Python 3 stdlib, aucune dépendance). Tests : `cd relay && python -m unittest -q test_cam_relay`.
+- Le script de déploiement installe le relais (`/opt/cam-relay`, unité systemd `cam-relay`, écoute
+  127.0.0.1:8787) et le publie sous `/api/*` dans Caddy. `DEPLOY_RELAY=0` le laisse de côté. Comme pour
+  le site, un relais et une unité identiques ne sont ni recopiés ni redémarrés.
+- Fonctionnement et données vues par le relais : [`docs/phone-push.md`](../docs/phone-push.md).

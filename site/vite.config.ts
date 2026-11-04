@@ -20,5 +20,15 @@ function phosphorInline(): Plugin {
 
 export default defineConfig({
   plugins: [phosphorInline()],
-  build: { target: "es2022", assetsInlineLimit: 0 },
+  build: {
+    target: "es2022",
+    assetsInlineLimit: 0,
+    // Landing page + phone companion (PWA under /app/, its sw.js and manifest live unhashed in public/app).
+    rollupOptions: {
+      input: {
+        main: join(dirname(fileURLToPath(import.meta.url)), "index.html"),
+        app: join(dirname(fileURLToPath(import.meta.url)), "app", "index.html"),
+      },
+    },
+  },
 });

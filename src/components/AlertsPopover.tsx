@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { AlertSettings, api, errorMessage } from "../api";
+import { PhonesSection } from "./PhonesSection";
 
 /** Bell in the title bar: usage-alert settings, saved as soon as they change. */
 export function AlertsPopover(props: { onToast: (msg: string) => void }) {
@@ -113,6 +114,7 @@ export function AlertsPopover(props: { onToast: (msg: string) => void }) {
             >
               Tester une notification
             </button>
+            <PhonesSection onToast={props.onToast} />
           </motion.div>
         )}
       </AnimatePresence>

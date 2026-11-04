@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Quotas Claude</title>
+    <meta name="description" content="Alertes de consommation et décomptes de réinitialisation de vos comptes Claude, même PC éteint." />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)" />
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="/app/icon-192.png" />
+    <link rel="apple-touch-icon" href="/app/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Quotas Claude" />
+    <script type="module" src="/app/main.ts"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="top">
+        <img src="/app/icon-192.png" alt="" width="40" height="40" />
+        <div>
+          <h1>Quotas Claude</h1>
+          <p id="updated" class="muted"></p>
+        </div>
+      </header>
+
+      <section id="accounts" class="accounts" aria-live="polite"></section>
+      <p id="empty" class="empty muted">
+        Aucun relevé reçu pour l'instant. Associez ce téléphone depuis le PC : la cloche, puis « Associer un téléphone ».
+      </p>
+
+      <section class="pair card">
+        <h2 id="pair-title">Associer ce téléphone</h2>
+        <p id="paired" class="muted" hidden>Ce téléphone reçoit déjà les notifications.</p>
+        <div id="ios" hidden>
+          <p>Sur iPhone (iOS 16.4 ou plus), les notifications passent par l'écran d'accueil :</p>
+          <ol>
+            <li>Touchez <strong>Partager</strong> dans Safari.</li>
+            <li>Choisissez <strong>Sur l'écran d'accueil</strong>, puis <strong>Ajouter</strong>.</li>
+            <li>Ouvrez <strong>Quotas Claude</strong> depuis l'écran d'accueil et saisissez le code affiché sur le PC.</li>
+          </ol>
+        </div>
+        <form id="pair-form" autocomplete="off">
+          <label for="code">Code affiché sur le PC</label>
+          <div class="row">
+            <input id="code" name="code" inputmode="text" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="ABCD2345EF" />
+            <button id="pair-btn" type="submit">Activer</button>
+          </div>
+        </form>
+        <p id="pair-msg" class="msg" role="status"></p>
+      </section>
+
+      <p class="foot muted">
+        Ne contient que vos pourcentages d'utilisation et heures de réinitialisation, envoyés chiffrés par votre PC. Aucun identifiant Claude.
+      </p>
+    </main>
+  </body>
+</html>

@@ -42,9 +42,35 @@ let settings = { cliPathOverride: null, recommend: {}, alerts: { enabled: true, 
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Phones: pairing answers on the third poll; a phone labelled "Ancien" behaves as an expired subscription.
+let phones = [{ id: "p1", label: "Android · Chrome", enabled: true, pairedAt: Date.now() / 1000 - 86400, service: "fcm.googleapis.com" }];
+let polls = 0;
+const qr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="200" height="200"><rect width="21" height="21" fill="#fff"/><path d="M1 1h7v7H1zM13 1h7v7h-7zM1 13h7v7H1zM10 10h2v2h-2z" fill="#000"/></svg>`;
+
 const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   list_accounts: () => wait(1200).then(() => accounts),
   test_notification: () => undefined,
+  phone_pair_start: () => {
+    polls = 0;
+    return wait(400).then(() => ({ code: "ABCD2345EF", url: "https://ai-accounts.trigenys.com/app/#pair=ABCD2345EF", qrSvg: qr, expiresAt: Date.now() / 1000 + 600 }));
+  },
+  phone_pair_poll: () => {
+    if (++polls < 3) return null;
+    const d = { id: `p${Date.now()}`, label: "iPhone · Safari", enabled: true, pairedAt: Date.now() / 1000, service: "web.push.apple.com" };
+    phones = [...phones, d];
+    return d;
+  },
+  phone_list: () => phones,
+  phone_set_enabled: (a) => (phones = phones.map((p) => (p.id === a.id ? { ...p, enabled: a.enabled as boolean } : p))),
+  phone_revoke: (a) => wait(300).then(() => (phones = phones.filter((p) => p.id !== a.id))),
+  phone_test: (a) => {
+    const p = phones.find((x) => x.id === a.id);
+    if (p?.label === "Ancien") {
+      phones = phones.filter((x) => x.id !== a.id);
+      throw { code: "phones", message: "Ce téléphone n'est plus abonné : il a été retiré." };
+    }
+    return wait(500).then(() => undefined);
+  },
   get_settings: () => settings,
   save_settings: (a) => (settings = a.settings as typeof settings),
   refresh_quotas: () => wait(2000).then(() => ({ refreshed: 3, failed: [] })),
