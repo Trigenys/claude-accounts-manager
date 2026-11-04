@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trigenys Claude Accounts Manager · plusieurs comptes Claude, un seul regard</title>
+    <meta
+      name="description"
+      content="Application Windows gratuite : quotas en direct de chaque compte Claude Code, alertes avant l'épuisement, son à la réinitialisation et compte le moins entamé. Aucun jeton lu ni transmis."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon-128.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="Trigenys Claude Accounts Manager" />
+    <meta property="og:description" content="Plusieurs comptes Claude, un seul regard : quotas, alertes et compte à utiliser maintenant." />
+    <meta property="og:image" content="/media/app-dark.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" as="image" href="/media/app-dark.webp" media="(prefers-color-scheme: dark)" />
+    <link rel="preload" as="image" href="/media/app-light.webp" media="(prefers-color-scheme: light)" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#contenu">Aller au contenu</a>
+
+    <header class="nav-wrap">
+      <nav class="nav" aria-label="Navigation principale">
+        <a class="brand" href="#top" aria-label="Trigenys Claude Accounts Manager, accueil">
+          <img src="/icon-128.png" alt="" width="28" height="28" />
+          <span>Accounts Manager</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="#fonctions">Fonctions</a></li>
+          <li><a href="#confidentialite">Confidentialité</a></li>
+          <li><a href="#installation">Installation</a></li>
+        </ul>
+        <a class="btn btn-primary btn-sm" href="#telecharger">Télécharger</a>
+      </nav>
+    </header>
+
+    <main id="contenu">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow reveal">Application de bureau Windows</p>
+          <h1 id="hero-title" class="reveal">Tous vos comptes Claude, d'un seul regard.</h1>
+          <p class="lede reveal">
+            Les quotas de chaque compte Claude Code en direct, une alerte avant l'épuisement et le compte à prendre maintenant.
+          </p>
+          <div class="cta-row reveal">
+            <a class="btn btn-primary btn-lg js-download" href="https://github.com/Trigenys/claude-accounts-manager/releases/download/v0.1.0/Trigenys-Claude-Accounts-Manager_0.1.0_x64-setup.exe">
+              <span>Télécharger pour Windows</span>
+              <span class="btn-orb"><i data-icon="download-simple"></i></span>
+            </a>
+            <a class="btn btn-ghost btn-lg" href="#installation">Notes d'installation</a>
+          </div>
+        </div>
+        <figure class="hero-shot reveal">
+          <div class="bezel">
+            <div class="bezel-core">
+              <picture>
+                <source srcset="/media/app-dark.webp" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="/media/app-light.webp"
+                  width="1600"
+                  height="1007"
+                  alt="Fenêtre Aperçu de l'application : quatre comptes avec leurs anneaux de quota, et le compte École recommandé avec le bouton Ouvrir Claude Code."
+                  fetchpriority="high"
+                />
+              </picture>
+            </div>
+          </div>
+          <figcaption class="sr-only">Capture réelle de l'application, données d'exemple.</figcaption>
+        </figure>
+      </section>
+
+      <section class="demo" aria-labelledby="demo-title">
+        <div class="demo-head">
+          <h2 id="demo-title">Voyez venir la limite, pas la subir.</h2>
+          <p>
+            L'anneau extérieur suit la session de 5&nbsp;h, l'anneau intérieur les 7&nbsp;jours. Faites glisser pour voir l'alerte que l'app enverrait.
+          </p>
+        </div>
+        <div class="demo-stage">
+          <div class="demo-ring">
+            <svg class="rings" id="demo-rings" viewBox="-110 -110 220 220" role="img" aria-labelledby="demo-ring-label">
+              <title id="demo-ring-label">Compte Client : session 5 h à 78 %, 7 jours à 40 %</title>
+            </svg>
+            <div class="ring-legend" aria-hidden="true">
+              <span><b id="demo-pct">78&nbsp;%</b> session 5&nbsp;h</span>
+              <span><b>40&nbsp;%</b> 7&nbsp;jours</span>
+            </div>
+          </div>
+          <div class="demo-controls">
+            <label for="demo-range" class="range-label">
+              Consommation de la session 5&nbsp;h du compte Client
+              <span class="range-hint">2&nbsp;h&nbsp;40 écoulées, réinitialisation dans 2&nbsp;h&nbsp;20</span>
+            </label>
+            <input id="demo-range" type="range" min="0" max="100" step="1" value="78" aria-describedby="demo-toast-title" />
+            <div class="range-scale" aria-hidden="true"><span>0</span><span>50</span><span>75</span><span>90</span><span>100&nbsp;%</span></div>
+            <div class="toast" id="demo-toast" role="status" aria-live="polite">
+              <img src="/icon-128.png" alt="" width="32" height="32" />
+              <div>
+                <p class="toast-title" id="demo-toast-title">Client · Session de 5 h à 78 %</p>
+                <p class="toast-body" id="demo-toast-body">Réinitialisation dans 2 h 20. Basculez sur École (12 %).</p>
+              </div>
+            </div>
+            <p class="demo-note">Libellés repris de l'app. Seuils par défaut 50, 75 et 90&nbsp;%, réglables.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" id="fonctions" aria-labelledby="features-title">
+        <h2 id="features-title">Ce que l'app surveille pour vous.</h2>
+        <div class="bento">
+          <article class="cell cell-windows reveal">
+            <div class="cell-text">
+              <h3>Chaque fenêtre de quota</h3>
+              <p>Session de 5&nbsp;h, 7&nbsp;jours et fenêtres par modèle, relevées toutes les 3&nbsp;minutes auprès de Claude Code.</p>
+            </div>
+            <div class="mini-rings" aria-hidden="true">
+              <figure><svg class="rings" data-five="34" data-week="61" viewBox="-110 -110 220 220"></svg><figcaption>Studio</figcaption></figure>
+              <figure><svg class="rings" data-five="12" data-week="20" viewBox="-110 -110 220 220"></svg><figcaption>École</figcaption></figure>
+              <figure><svg class="rings" data-five="96" data-week="40" viewBox="-110 -110 220 220"></svg><figcaption>Client</figcaption></figure>
+            </div>
+          </article>
+
+          <article class="cell cell-alerts reveal">
+            <div class="cell-text">
+              <h3>Alertes de seuil et de rythme</h3>
+              <p>Temps restant, épuisement prévu au rythme actuel et compte vers lequel basculer.</p>
+            </div>
+            <picture class="cell-shot">
+              <source srcset="/media/alerts-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img src="/media/alerts-light.webp" width="876" height="804" loading="lazy" alt="Réglages des alertes : seuils 50, 75 et 90 %, alerte de rythme et son à partir de 90 %." />
+            </picture>
+          </article>
+
+          <article class="cell cell-reset reveal">
+            <i data-icon="speaker-high"></i>
+            <h3>Un son quand le quota revient</h3>
+            <p>Dès qu'une fenêtre se réinitialise, une notification sonore vous rend la main.</p>
+            <p class="mini-toast"><b>Perso · Session de 5 h</b><span>Quota réinitialisé : de nouveau disponible à 100 %.</span></p>
+          </article>
+
+          <article class="cell cell-reco reveal">
+            <i data-icon="users-three"></i>
+            <h3>Le compte le moins entamé</h3>
+            <p>Un score pondéré désigne le compte à utiliser, et ignore ceux déjà à 90&nbsp;% sur la session.</p>
+            <p class="formula"><span>0,6 × session 5 h</span><span>+ 0,4 × semaine</span></p>
+          </article>
+
+          <article class="cell cell-tray reveal">
+            <i data-icon="tray"></i>
+            <h3>Toujours près de l'horloge</h3>
+            <p>Fermer la fenêtre ne coupe rien : l'icône reste dans la zone de notification et les alertes continuent.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="privacy" id="confidentialite" aria-labelledby="privacy-title">
+        <p class="eyebrow">Confidentialité</p>
+        <h2 id="privacy-title">Vos jetons de connexion restent où ils sont.</h2>
+        <p class="privacy-lede">
+          Les quotas sont demandés à Claude Code lui-même, comme la commande <code>/usage</code>. Aucun message n'est envoyé à un modèle, rien n'est consommé.
+        </p>
+        <div class="privacy-grid">
+          <div>
+            <h3><i data-icon="eye-slash"></i> Jamais</h3>
+            <ul>
+              <li>Lire, stocker ou transmettre un jeton de connexion</li>
+              <li>Envoyer vos données à un serveur, Trigenys compris</li>
+              <li>Modifier votre profil principal <code>~/.claude</code></li>
+            </ul>
+          </div>
+          <div>
+            <h3><i data-icon="shield-check"></i> Seulement, et en local</h3>
+            <ul>
+              <li>Les pourcentages de quota renvoyés par Claude Code</li>
+              <li>La consommation de tokens des journaux de session</li>
+              <li>Le forfait et l'email du profil, jamais un secret</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="install" id="installation" aria-labelledby="install-title">
+        <h2 id="install-title">Avant d'installer, en toute franchise.</h2>
+        <ol class="steps">
+          <li>
+            <i data-icon="windows-logo"></i>
+            <h3>Windows 10 ou 11, 64 bits</h3>
+            <p>Un installeur de 2&nbsp;Mo, sans droits administrateur. Pas encore de version macOS ni Linux.</p>
+          </li>
+          <li>
+            <i data-icon="shield-check"></i>
+            <h3>SmartScreen va vous prévenir</h3>
+            <p>L'installeur n'est pas encore signé. Cliquez sur <strong>Informations complémentaires</strong>, puis <strong>Exécuter quand même</strong>.</p>
+          </li>
+          <li>
+            <i data-icon="terminal"></i>
+            <h3>Claude Code requis</h3>
+            <p>L'app lit les quotas que Claude Code expose. Installez-le et connectez chaque compte une fois.</p>
+          </li>
+        </ol>
+        <details class="checksum">
+          <summary>Vérifier l'intégrité du fichier</summary>
+          <p>Empreinte SHA-256 publiée par GitHub pour la version 0.1.0 :</p>
+          <code class="hash">50e7d65eaf581a715062fe77bbdc821c4a844ab7a66120fdd19ae72da74ee32d</code>
+          <p>Dans PowerShell : <code>Get-FileHash .\Trigenys-Claude-Accounts-Manager_0.1.0_x64-setup.exe</code></p>
+        </details>
+      </section>
+
+      <section class="final" id="telecharger" aria-labelledby="final-title">
+        <div class="bezel">
+          <div class="bezel-core final-core">
+            <img src="/icon-128.png" alt="" width="64" height="64" class="final-icon" />
+            <h2 id="final-title">Prêt à jongler sans compter&nbsp;?</h2>
+            <a class="btn btn-primary btn-lg js-download" href="https://github.com/Trigenys/claude-accounts-manager/releases/download/v0.1.0/Trigenys-Claude-Accounts-Manager_0.1.0_x64-setup.exe">
+              <span>Télécharger pour Windows</span>
+              <span class="btn-orb"><i data-icon="download-simple"></i></span>
+            </a>
+            <p class="final-meta">Version 0.1.0, gratuite. <a href="https://github.com/Trigenys/claude-accounts-manager/releases/tag/v0.1.0">Notes de version</a></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Trigenys Claude Accounts Manager est un outil indépendant, non affilié à Anthropic.</p>
+      <p><a href="https://github.com/Trigenys/claude-accounts-manager"><i data-icon="github-logo"></i> Code source sur GitHub</a></p>
+    </footer>
+  </body>
+</html>
