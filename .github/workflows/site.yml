@@ -1,0 +1,37 @@
+name: Site
+
+# Change-scoped: the landing page, the phone PWA and the push relay only; the app CI (ci.yml) is unaffected.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/site.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/site.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    runs-on: ubuntu-24.04 # same Python 3.12 as the VPS
+    steps:
+      - uses: actions/checkout@v7
+      - name: Relay unit tests (standard library only)
+        working-directory: site/relay
+        run: python3 -m unittest -v test_cam_relay
+      - name: Deploy script syntax
+        run: bash -n site/scripts/deploy.sh
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm install -g pnpm@12.6.0
+      - run: pnpm --dir site --ignore-workspace install --frozen-lockfile
+      - run: pnpm --dir site --ignore-workspace build
+      - name: PWA files are published unhashed under /app/
+        run: test -f site/dist/app/index.html && test -f site/dist/app/sw.js && test -f site/dist/app/manifest.webmanifest

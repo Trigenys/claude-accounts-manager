@@ -31,6 +31,12 @@ dirs = "6"
 junction = "1"
 tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
+# Web Push (RFC 8291 aes128gcm + RFC 8292 VAPID), pure Rust crypto; blocking HTTP client; pairing QR code.
+web-push-native = "0.5"
+base64ct = { version = "1", features = ["alloc"] }
+sha2 = "0.10"
+ureq = { version = "3", features = ["json"] }
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

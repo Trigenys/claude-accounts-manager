@@ -28,6 +28,22 @@ pub struct Settings {
     pub cli_path_override: Option<String>,
     pub recommend: RecommendSettings,
     pub alerts: AlertSettings,
+    pub phones: PhoneSettings,
+}
+
+/// Phone notifications (Web Push). The relay hosts the PWA, the pairing mailbox and the reset schedule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PhoneSettings {
+    pub relay_url: String,
+}
+
+impl Default for PhoneSettings {
+    fn default() -> Self {
+        Self {
+            relay_url: "https://ai-accounts.trigenys.com".into(),
+        }
+    }
 }
 
 impl Default for Settings {
@@ -36,6 +52,7 @@ impl Default for Settings {
             cli_path_override: None,
             recommend: RecommendSettings::default(),
             alerts: AlertSettings::default(),
+            phones: PhoneSettings::default(),
         }
     }
 }

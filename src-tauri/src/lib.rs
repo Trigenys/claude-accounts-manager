@@ -3,6 +3,7 @@ mod claude;
 mod desktop;
 mod error;
 mod model;
+mod phones;
 mod quota;
 mod recommend;
 mod reset_notify;
@@ -11,6 +12,7 @@ mod store;
 mod tray;
 mod usage;
 mod usage_alerts;
+mod webpush;
 
 use std::path::PathBuf;
 
@@ -334,12 +336,214 @@ fn test_notification(app: tauri::AppHandle) -> AppResult<()> {
         .map_err(|e| AppError::new("notification", e.to_string()))
 }
 
+/// Live windows of every account plus each account's readout time, as pushed to phones.
+fn phone_accounts(s: &Store, now: i64) -> Vec<phones::PhoneAccount> {
+    let mut windows = Vec::new();
+    let mut captured = Vec::new();
+    for a in &s.accounts {
+        if let Some(snap) = claude::effective_config_dir(a)
+            .ok()
+            .and_then(|d| statusline::read(&d))
+        {
+            windows.extend(usage_alerts::windows(&a.id, &a.label, &snap, now));
+            captured.push((a.id.clone(), snap.captured_at));
+        }
+    }
+    phones::accounts(&windows, &captured)
+}
+
+/// VAPID keys and relay client for the configured relay (HTTPS only).
+fn phone_ctx(dir: &std::path::Path) -> AppResult<(webpush::Vapid, phones::HttpRelay)> {
+    let s = store::load(dir)?;
+    let base = s
+        .settings
+        .phones
+        .relay_url
+        .trim_end_matches('/')
+        .to_string();
+    if !base.starts_with("https://") {
+        return Err(AppError::new(
+            "phones",
+            "L'adresse du relais doit être en https://",
+        ));
+    }
+    let vapid = webpush::Vapid::load_or_create(dir, &base).map_err(phone_err)?;
+    Ok((
+        vapid,
+        phones::HttpRelay {
+            base,
+            agent: webpush::agent(),
+        },
+    ))
+}
+
+fn phone_err(e: impl std::fmt::Display) -> AppError {
+    AppError::new("phones", e.to_string())
+}
+
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> AppResult<T> + Send + 'static,
+) -> AppResult<T> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(phone_err)?
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Pairing {
+    code: String,
+    url: String,
+    qr_svg: String,
+    expires_at: i64,
+}
+
+/// Opens a pairing mailbox on the relay and returns the QR code the phone scans.
+#[tauri::command]
+async fn phone_pair_start(state: State<'_, AppState>) -> AppResult<Pairing> {
+    let dir = state.dir.clone();
+    blocking(move || {
+        use phones::Relay;
+        let (vapid, relay) = phone_ctx(&dir)?;
+        let code = phones::new_code();
+        relay.offer(&code, &vapid.public_key()).map_err(phone_err)?;
+        let url = format!("{}/app/#pair={code}", relay.base);
+        Ok(Pairing {
+            qr_svg: phones::qr_svg(&url).map_err(phone_err)?,
+            url,
+            code,
+            expires_at: Utc::now().timestamp() + phones::PAIR_TTL_SECS,
+        })
+    })
+    .await
+}
+
+/// Collects the phone's subscription once it has answered; `None` while it has not.
+#[tauri::command]
+async fn phone_pair_poll(
+    state: State<'_, AppState>,
+    code: String,
+) -> AppResult<Option<phones::DeviceView>> {
+    let dir = state.dir.clone();
+    blocking(move || {
+        use phones::Relay;
+        let (vapid, relay) = phone_ctx(&dir)?;
+        let Some(answer) = relay.take(&code).map_err(phone_err)? else {
+            return Ok(None);
+        };
+        let now = Utc::now().timestamp();
+        let id = phones::update(&dir, |d| match phones::add(d, answer, now) {
+            Ok(id) => (true, Ok(id)),
+            Err(e) => (false, Err(e)),
+        })
+        .and_then(|r| r)
+        .map_err(phone_err)?;
+        let device = phones::load(&dir).into_iter().find(|d| d.id == id);
+        if let Some(d) = &device {
+            let accounts = phone_accounts(&store::load(&dir)?, now);
+            let pusher = webpush::HttpPusher(webpush::agent());
+            let msg = phones::paired_message(now, &accounts);
+            let out = phones::push_now(&vapid, &pusher, d, &msg, now, 3600, "normal");
+            if out != webpush::Outcome::Delivered {
+                eprintln!("paired push not delivered: {out:?}");
+            }
+        }
+        Ok(device.map(|d| d.view()))
+    })
+    .await
+}
+
+#[tauri::command]
+fn phone_list(state: State<AppState>) -> Vec<phones::DeviceView> {
+    phones::load(&state.dir).iter().map(|d| d.view()).collect()
+}
+
+/// Turns a phone on or off; the watcher empties or rebuilds its relay schedule on the next round.
+#[tauri::command]
+fn phone_set_enabled(
+    state: State<AppState>,
+    id: String,
+    enabled: bool,
+) -> AppResult<Vec<phones::DeviceView>> {
+    phones::update(&state.dir, |d| {
+        let mut changed = false;
+        for x in d.iter_mut().filter(|x| x.id == id && x.enabled != enabled) {
+            x.enabled = enabled;
+            changed = true;
+        }
+        (changed, d.iter().map(|x| x.view()).collect())
+    })
+    .map_err(phone_err)
+}
+
+fn remove_phone(dir: &std::path::Path, id: &str) -> AppResult<Vec<phones::DeviceView>> {
+    phones::update(dir, |d| {
+        let before = d.len();
+        d.retain(|x| x.id != id);
+        (before != d.len(), d.iter().map(|x| x.view()).collect())
+    })
+    .map_err(phone_err)
+}
+
+/// Forgets a phone here and on the relay (its pending reset pushes are dropped).
+#[tauri::command]
+async fn phone_revoke(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<Vec<phones::DeviceView>> {
+    let dir = state.dir.clone();
+    blocking(move || {
+        use phones::Relay;
+        if let Some(d) = phones::load(&dir).into_iter().find(|d| d.id == id) {
+            let (_, relay) = phone_ctx(&dir)?;
+            if let Err(e) = relay.forget(&d) {
+                eprintln!("relay forget failed: {e}");
+            }
+        }
+        remove_phone(&dir, &id)
+    })
+    .await
+}
+
+/// Sends a test push to one phone now; a 404/410 answer prunes it on both sides.
+#[tauri::command]
+async fn phone_test(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let dir = state.dir.clone();
+    blocking(move || {
+        use phones::Relay;
+        let d = phones::load(&dir)
+            .into_iter()
+            .find(|d| d.id == id)
+            .ok_or_else(|| AppError::new("not_found", "Téléphone introuvable"))?;
+        let (vapid, relay) = phone_ctx(&dir)?;
+        let now = Utc::now().timestamp();
+        let accounts = phone_accounts(&store::load(&dir)?, now);
+        let pusher = webpush::HttpPusher(webpush::agent());
+        let msg = phones::test_message(now, &accounts);
+        match phones::push_now(&vapid, &pusher, &d, &msg, now, 600, "high") {
+            webpush::Outcome::Delivered => Ok(()),
+            webpush::Outcome::Gone => {
+                let _ = relay.forget(&d);
+                remove_phone(&dir, &id)?;
+                Err(AppError::new(
+                    "phones",
+                    "Ce téléphone n'est plus abonné : il a été retiré. Associez-le de nouveau.",
+                ))
+            }
+            webpush::Outcome::Failed(e) => Err(phone_err(e)),
+        }
+    })
+    .await
+}
+
 /// Watches every account's latest readout: notifies resets (with sound) and usage alerts (thresholds, pace).
 fn spawn_reset_watcher(app: tauri::AppHandle, dir: PathBuf) {
     use tauri_plugin_notification::NotificationExt;
     std::thread::spawn(move || {
         let mut tracker = reset_notify::Tracker::load(&dir);
         let mut alerts = usage_alerts::Tracker::load(&dir);
+        let mut hub = phones::Hub::default();
+        let pusher = webpush::HttpPusher(webpush::agent());
         let notify = |title: &str, body: &str, sound: bool| {
             let mut b = app.notification().builder().title(title).body(body);
             if sound {
@@ -355,6 +559,7 @@ fn spawn_reset_watcher(app: tauri::AppHandle, dir: PathBuf) {
                 let mut changed = tracker
                     .retain_accounts(&s.accounts.iter().map(|a| a.id.clone()).collect::<Vec<_>>());
                 let mut windows = Vec::new();
+                let mut captured = Vec::new();
                 for a in &s.accounts {
                     if let Some(snap) = claude::effective_config_dir(a)
                         .ok()
@@ -362,6 +567,7 @@ fn spawn_reset_watcher(app: tauri::AppHandle, dir: PathBuf) {
                     {
                         changed |= tracker.observe(&a.id, &a.label, &snap, now);
                         windows.extend(usage_alerts::windows(&a.id, &a.label, &snap, now));
+                        captured.push((a.id.clone(), snap.captured_at));
                     }
                 }
                 let notices = tracker.due(now);
@@ -377,6 +583,30 @@ fn spawn_reset_watcher(app: tauri::AppHandle, dir: PathBuf) {
                 }
                 if alerts_changed {
                     alerts.save(&dir);
+                }
+                // Phones: alerts and status now; resets go through the relay schedule (the relay owns them).
+                let devices = phones::load(&dir);
+                if !devices.is_empty() {
+                    match phone_ctx(&dir) {
+                        Ok((vapid, relay)) => {
+                            let accounts = phones::accounts(&windows, &captured);
+                            let resets = tracker.upcoming(now);
+                            let tick = phones::Tick {
+                                now,
+                                accounts: &accounts,
+                                resets: &resets,
+                                alerts: &fired,
+                            };
+                            let c = hub.tick(&vapid, &devices, &tick, &pusher, &relay);
+                            if !c.is_empty() {
+                                if let Err(e) = phones::update(&dir, |d| (phones::apply(d, &c), ()))
+                                {
+                                    eprintln!("phones not saved: {e}");
+                                }
+                            }
+                        }
+                        Err(e) => eprintln!("phones disabled: {}", e.message),
+                    }
                 }
             }
             std::thread::sleep(std::time::Duration::from_secs(20));
@@ -448,7 +678,13 @@ pub fn run() {
             profile_status,
             detect_account_info,
             refresh_quotas,
-            test_notification
+            test_notification,
+            phone_pair_start,
+            phone_pair_poll,
+            phone_list,
+            phone_set_enabled,
+            phone_revoke,
+            phone_test
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

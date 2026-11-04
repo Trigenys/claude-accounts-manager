@@ -1051,6 +1051,8 @@ h2 {
   right: 0;
   z-index: 50;
   width: 300px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--surface);
@@ -1126,6 +1128,100 @@ h2 {
 
 .alerts-test:hover {
   background: var(--fill-hover);
+}
+
+.alerts-test:disabled,
+.phone-btn:disabled {
+  opacity: 0.5;
+}
+
+/* Paired phones, inside the alerts popover. */
+.phones {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--separator);
+}
+
+.phones-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.phone-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.phone-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-btn {
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--fill);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.phone-btn.icon {
+  width: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.phone-btn:hover:not(:disabled) {
+  background: var(--fill-hover);
+}
+
+.phone-pair {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.phone-qr svg {
+  display: block;
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+}
+
+.phone-code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  user-select: all;
+}
+
+.phone-pair .alerts-hint {
+  margin: 0;
+  text-align: center;
+}
+
+.phones > .alerts-test {
+  margin-top: 6px;
 }
 
 /* Everything clickable shows the hand cursor; disabled controls do not. */
