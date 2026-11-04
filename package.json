@@ -1,25 +1,32 @@
 {
-  "name": "claude-accounts-manager",
+  "name": "claude-account-manager",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 1420",
+    "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@fontsource-variable/inter": "^5.3.0",
+    "@tanstack/react-query": "^5.105.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.66.0",
+    "motion": "^14.9.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "^5.8.0",
-    "vite": "^7.0.0"
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^5.0.5"
   }
 }
