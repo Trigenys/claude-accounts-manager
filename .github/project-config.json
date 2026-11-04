@@ -1,0 +1,15 @@
+{
+  "project": {
+    "owner": "Trigenys",
+    "title": "Trigenys Claude Accounts Manager Development",
+    "bootstrap": true,
+    "template": "appfactory-product",
+    "linkRepository": true,
+    "importOpenIssues": true,
+    "createBoardView": true
+  },
+  "bootstrap": {
+    "boardViewName": "AppFactory Board",
+    "phases": ["Foundation", "MVP", "Visual QA", "Hardening", "Release"]
+  }
+}

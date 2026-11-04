@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "projectType": "desktop",
+  "platform": "windows",
+  "preset": "tauri-react",
+  "blueprintVersion": 1
+}
