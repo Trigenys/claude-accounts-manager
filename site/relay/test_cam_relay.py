@@ -83,7 +83,8 @@ class ScheduleTest(unittest.TestCase):
         self.sender = Sender()
         self.dir = tempfile.TemporaryDirectory()
         self.path = os.path.join(self.dir.name, "state.json")
-        self.relay = r.Relay(self.path, send=self.sender, clock=self.clock)
+        self.logs = []
+        self.relay = r.Relay(self.path, send=self.sender, clock=self.clock, log=self.logs.append)
 
     def tearDown(self):
         self.dir.cleanup()
@@ -120,6 +121,8 @@ class ScheduleTest(unittest.TestCase):
         self.put([entry(self.clock.t)])
         self.sender.status = 410
         self.relay.run_due()
+        self.assertEqual(len(self.logs), 1)
+        self.assertRegex(self.logs[0], r"^push [0-9a-f]{8} 410$")  # status only, never endpoint or payload
         self.assertNotIn(DEV, self.relay.devices)
         self.assertEqual(self.put([entry(self.clock.t + 10)])[0], 410, "the desktop learns it is gone")
         self.clock.t += r.TOMBSTONE_TTL + 1

@@ -101,8 +101,9 @@ def http_send(entry, endpoint):
 
 
 class Relay:
-    def __init__(self, path=None, send=http_send, clock=time.time):
+    def __init__(self, path=None, send=http_send, clock=time.time, log=None):
         self.path = path
+        self.log = log or (lambda msg: print(msg, flush=True))
         self.send = send
         self.clock = clock
         self.lock = threading.Lock()
@@ -277,6 +278,7 @@ class Relay:
             now = self.now()
             changed = False
             for i, e, status in results:
+                self.log(f"push {i[:8]} {status}")  # outcome only: no endpoint, keys or payload
                 d = self.devices.get(i)
                 if d is None or e not in d.get("entries", []):
                     continue  # replaced or revoked meanwhile
