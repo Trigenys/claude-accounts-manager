@@ -78,7 +78,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   recommend: () => ({ accountId: "ecole", reason: "École est le moins entamé (score 15/100).", scores: [] }),
   get_persistent_profile: () => ({ current: null, accountId: "perso" }),
   detect_account_info: () => ({ email: "perso@exemple.com", displayName: "Perso", plan: "max5x", subscriptionCreatedAt: "2026-10-31T18:43:22Z", nextRenewal: "2026-11-30" }),
-  profile_status: (a) => ({ configDir: "C:/Users/demo/.claude", isDefault: a.id === "perso", loggedIn: a.id !== "client", actions: [], warnings: [] }),
+  profile_status: (a) => ({ configDir: "C:/Users/demo/.claude", isDefault: a.id === "perso", loggedIn: a.id !== "client", sessionExpired: false, actions: [], warnings: [] }),
 };
 
 export function installDevMock() {

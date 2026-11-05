@@ -172,6 +172,12 @@ export default function App() {
                   isPersistent={persistent.data?.accountId === current.id}
                   onEdit={() => setSheet({ account: current })}
                   onLaunchCli={() => run(() => api.launchCli(current.id), "Terminal Claude Code ouvert")}
+                  onReconnect={() =>
+                    run(
+                      () => api.reconnectCli(current.id),
+                      "Connexion ouverte : terminez-la dans le navigateur, puis actualisez les quotas",
+                    )
+                  }
                   onLaunchDesktop={() => run(() => api.launchDesktop(current.id), "Claude Desktop lancé")}
                   onMakePersistent={() =>
                     run(() => api.setPersistentProfile(current.id), `${current.label} est le compte par défaut des nouveaux terminaux`)
@@ -392,6 +398,7 @@ function AccountDetail(props: {
   isPersistent: boolean;
   onEdit: () => void;
   onLaunchCli: () => void;
+  onReconnect: () => void;
   onLaunchDesktop: () => void;
   onMakePersistent: () => void;
 }) {
@@ -472,14 +479,19 @@ function AccountDetail(props: {
         <div className="row">
           <span>Connexion Claude Code</span>
           <span className="value">
-            {profile.data?.loggedIn ? (
+            {profile.data?.loggedIn && !profile.data.sessionExpired ? (
               <span className="ok">
                 <Check size={14} /> Connecté
               </span>
             ) : (
-              <span className="warn">
-                <KeyRound size={14} /> À connecter : ouvrez Claude Code puis tapez /login
-              </span>
+              <>
+                <span className="warn">
+                  <KeyRound size={14} /> {profile.data?.sessionExpired ? "Session expirée" : "Non connecté"}
+                </span>
+                <button className="btn plain" onClick={props.onReconnect}>
+                  {profile.data?.sessionExpired ? "Se reconnecter" : "Se connecter"}
+                </button>
+              </>
             )}
           </span>
         </div>

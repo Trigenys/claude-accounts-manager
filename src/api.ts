@@ -68,6 +68,7 @@ export interface ProfileState {
   configDir: string;
   isDefault: boolean;
   loggedIn: boolean;
+  sessionExpired: boolean;
   actions: string[];
   warnings: string[];
 }
@@ -111,6 +112,8 @@ export const api = {
   profileStatus: (id: string) => invoke<ProfileState>("profile_status", { id }),
   ensureCliProfile: (id: string) => invoke<ProfileState>("ensure_cli_profile", { id }),
   launchCli: (id: string) => invoke<void>("launch_cli", { id }),
+  /** Opens a terminal running `claude auth login` in this account's profile. */
+  reconnectCli: (id: string) => invoke<void>("launch_cli", { id, login: true }),
   launchDesktop: (id: string) => invoke<void>("launch_desktop", { id }),
   getPersistentProfile: () => invoke<PersistentState>("get_persistent_profile"),
   setPersistentProfile: (id: string) => invoke<PersistentState>("set_persistent_profile", { id }),
