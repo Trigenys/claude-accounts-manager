@@ -89,6 +89,16 @@ export interface AppError {
   message: string;
 }
 
+export interface SessionInfo {
+  id: string;
+  title: string | null;
+  firstPrompt: string | null;
+  cwd: string | null;
+  lastActivity: string | null;
+  sizeBytes: number;
+  resumable: boolean;
+}
+
 export const errorMessage = (e: unknown) =>
   typeof e === "object" && e && "message" in e ? String((e as AppError).message) : String(e);
 
@@ -114,6 +124,8 @@ export const api = {
   launchCli: (id: string) => invoke<void>("launch_cli", { id }),
   /** Opens a terminal running `claude auth login` in this account's profile. */
   reconnectCli: (id: string) => invoke<void>("launch_cli", { id, login: true }),
+  listSessions: (id: string) => invoke<SessionInfo[]>("list_sessions", { id }),
+  resumeSession: (id: string, sessionId: string) => invoke<void>("resume_session", { id, sessionId }),
   launchDesktop: (id: string) => invoke<void>("launch_desktop", { id }),
   getPersistentProfile: () => invoke<PersistentState>("get_persistent_profile"),
   setPersistentProfile: (id: string) => invoke<PersistentState>("set_persistent_profile", { id }),

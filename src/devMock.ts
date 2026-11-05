@@ -45,6 +45,13 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Phones: pairing answers on the third poll; a phone labelled "Ancien" behaves as an expired subscription.
 let phones = [{ id: "p1", label: "Android · Chrome", enabled: true, pairedAt: Date.now() / 1000 - 86400, service: "fcm.googleapis.com" }];
 let polls = 0;
+const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+const sessions = [
+  { id: "0e416f3e-5ea8-4e2a-b52c-919125b2c55e", title: "Refonte du tableau de bord", firstPrompt: "lis la passation et continue la refonte", cwd: "C:/Users/demo/Projets/atelier", lastActivity: ago(0.3), sizeBytes: 4_812_000, resumable: true },
+  { id: "fc5b4117-b756-4f9d-9296-2838dc784d9c", title: null, firstPrompt: "pourquoi le build Tauri échoue sur la CI ?", cwd: "C:/Users/demo/Projets/atelier", lastActivity: ago(26), sizeBytes: 312_400, resumable: true },
+  { id: "538ef362-588a-40d3-bbce-2957ffe6d0a6", title: "Migration des factures", firstPrompt: "migre la table invoices", cwd: "C:/Users/demo/Clients/facturation", lastActivity: ago(80), sizeBytes: 21_904_000, resumable: true },
+  { id: "077d25c5-0e2e-4c15-ab24-c3f895869ff0", title: "Ancien prototype", firstPrompt: "crée un prototype", cwd: "C:/Users/demo/Archives/proto", lastActivity: ago(400), sizeBytes: 9_800, resumable: false },
+];
 const qr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="200" height="200"><rect width="21" height="21" fill="#fff"/><path d="M1 1h7v7H1zM13 1h7v7h-7zM1 13h7v7H1zM10 10h2v2h-2z" fill="#000"/></svg>`;
 
 const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
@@ -78,6 +85,8 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   recommend: () => ({ accountId: "ecole", reason: "École est le moins entamé (score 15/100).", scores: [] }),
   get_persistent_profile: () => ({ current: null, accountId: "perso" }),
   detect_account_info: () => ({ email: "perso@exemple.com", displayName: "Perso", plan: "max5x", subscriptionCreatedAt: "2026-10-31T18:43:22Z", nextRenewal: "2026-11-30" }),
+  list_sessions: (a) => wait(300).then(() => (a.id === "client" ? [] : sessions)),
+  resume_session: () => wait(200).then(() => undefined),
   profile_status: (a) => ({ configDir: "C:/Users/demo/.claude", isDefault: a.id === "perso", loggedIn: a.id !== "client", sessionExpired: false, actions: [], warnings: [] }),
 };
 

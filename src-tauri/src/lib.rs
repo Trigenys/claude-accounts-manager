@@ -7,6 +7,7 @@ mod phones;
 mod quota;
 mod recommend;
 mod reset_notify;
+mod sessions;
 mod statusline;
 mod store;
 mod tray;
@@ -19,7 +20,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use tauri::State;
 
-use claude::{CliInfo, PersistentState, ProfileState};
+use claude::{CliInfo, LaunchMode, PersistentState, ProfileState};
 use desktop::DesktopInfo;
 use error::{AppError, AppResult};
 use model::{Account, AccountInput, Settings, Store};
@@ -175,7 +176,41 @@ fn launch_cli(
     )?;
     let cli = claude::detect_cli(s.settings.cli_path_override.as_deref(), &claude::home()?)?;
     let cwd = cwd.map(PathBuf::from).unwrap_or(claude::home()?);
-    claude::launch_cli(&a, &cli, &state.dir, &cwd, login.unwrap_or(false))
+    let mode = if login.unwrap_or(false) {
+        LaunchMode::Login
+    } else {
+        LaunchMode::Interactive
+    };
+    claude::launch_cli(&a, &cli, &state.dir, &cwd, &mode)
+}
+
+#[tauri::command]
+async fn list_sessions(
+    state: State<'_, AppState>,
+    id: String,
+    limit: Option<usize>,
+) -> AppResult<Vec<sessions::SessionInfo>> {
+    let a = find(&store::load(&state.dir)?, &id)?;
+    let dir = claude::effective_config_dir(&a)?;
+    let limit = limit.unwrap_or(sessions::DEFAULT_LIMIT);
+    // Disk reads stay off the UI thread.
+    tauri::async_runtime::spawn_blocking(move || sessions::list(&dir, limit))
+        .await
+        .map_err(|e| AppError::new("sessions", e.to_string()))
+}
+
+/// Reopens a conversation in its own project folder, read back from the transcript.
+#[tauri::command]
+fn resume_session(state: State<AppState>, id: String, session_id: String) -> AppResult<()> {
+    state.ensure_real_paths()?;
+    let session = sessions::SessionId::parse(&session_id)?;
+    let s = store::load(&state.dir)?;
+    let a = find(&s, &id)?;
+    let config_dir = claude::effective_config_dir(&a)?;
+    let cwd = sessions::resume_cwd(&config_dir, &session)?;
+    claude::ensure_profile(&config_dir, &claude::default_config_dir()?)?;
+    let cli = claude::detect_cli(s.settings.cli_path_override.as_deref(), &claude::home()?)?;
+    claude::launch_cli(&a, &cli, &state.dir, &cwd, &LaunchMode::Resume(session))
 }
 
 #[tauri::command]
@@ -675,6 +710,8 @@ pub fn run() {
             detect_cli,
             ensure_cli_profile,
             launch_cli,
+            list_sessions,
+            resume_session,
             get_persistent_profile,
             set_persistent_profile,
             locate_desktop,

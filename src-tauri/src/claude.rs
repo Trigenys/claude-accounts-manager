@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::error::{AppError, AppResult};
 use crate::model::Account;
+use crate::sessions::SessionId;
 use crate::store::write_if_changed;
 
 /// Items shared with the default profile through directory junctions.
@@ -322,6 +323,34 @@ fn ps_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
+/// What the launched terminal runs. Every variant maps to fixed arguments; the only variable part
+/// is a session id already validated as a UUID.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LaunchMode {
+    Interactive,
+    /// `claude auth login` in that profile instead of an interactive session.
+    Login,
+    Resume(SessionId),
+}
+
+impl LaunchMode {
+    fn args(&self) -> String {
+        match self {
+            Self::Interactive => String::new(),
+            Self::Login => " auth login --claudeai".to_string(),
+            Self::Resume(id) => format!(" --resume {}", id.as_str()),
+        }
+    }
+
+    fn launcher_suffix(&self) -> &'static str {
+        match self {
+            Self::Interactive => "",
+            Self::Login => "-login",
+            Self::Resume(_) => "-resume",
+        }
+    }
+}
+
 /// `browser`: executable Claude Code should use to open URLs (set for secondary profiles only, so
 /// `/login` opens in a private window instead of the main account's claude.ai session).
 pub fn launcher_script(
@@ -329,7 +358,7 @@ pub fn launcher_script(
     cli: &str,
     label: &str,
     browser: Option<&Path>,
-    login: bool,
+    mode: &LaunchMode,
 ) -> String {
     let mut env = match config_dir {
         Some(d) => format!(
@@ -352,7 +381,7 @@ pub fn launcher_script(
         title = ps_quote(&format!("Claude · {label}")),
         cli = ps_quote(cli),
         // Fixed arguments only: nothing user-controlled reaches the command line.
-        args = if login { " auth login --claudeai" } else { "" },
+        args = mode.args(),
     )
 }
 
@@ -364,13 +393,12 @@ fn find_on_path(exe: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// `login`: run `claude auth login` in that profile instead of an interactive session.
 pub fn launch_cli(
     account: &Account,
     cli: &CliInfo,
     app_dir: &Path,
     cwd: &Path,
-    login: bool,
+    mode: &LaunchMode,
 ) -> AppResult<()> {
     let browser = std::env::current_exe().ok();
     let script = launcher_script(
@@ -378,9 +406,9 @@ pub fn launch_cli(
         &cli.path,
         &account.label,
         browser.as_deref(),
-        login,
+        mode,
     );
-    let suffix = if login { "-login" } else { "" };
+    let suffix = mode.launcher_suffix();
     let launcher = app_dir
         .join("launchers")
         .join(format!("{}{suffix}.ps1", account.id));
@@ -634,7 +662,7 @@ mod tests {
             "C:/x/claude.exe",
             "Hello",
             None,
-            true,
+            &LaunchMode::Login,
         );
         assert!(s.contains("$env:CLAUDE_CONFIG_DIR = 'C:/p/cli'"));
         assert!(s.contains("& 'C:/x/claude.exe' auth login --claudeai\r\n"));
@@ -647,16 +675,34 @@ mod tests {
             "C:/x/claude.exe",
             "Perso",
             Some(Path::new("C:/app.exe")),
-            false,
+            &LaunchMode::Interactive,
         );
         assert!(s.contains("$env:CLAUDE_CONFIG_DIR = 'C:/a''b'"));
         assert!(s.contains("& 'C:/x/claude.exe'\r\n"));
         assert!(s.contains("$env:BROWSER = 'C:/app.exe'"));
-        let d = launcher_script(None, "c", "d", Some(Path::new("C:/app.exe")), false);
+        let d = launcher_script(
+            None,
+            "c",
+            "d",
+            Some(Path::new("C:/app.exe")),
+            &LaunchMode::Interactive,
+        );
         assert!(d.contains("Remove-Item Env:CLAUDE_CONFIG_DIR"));
         assert!(
             !d.contains("BROWSER"),
             "default profile keeps the normal browser"
         );
+    }
+
+    #[test]
+    fn resume_launcher_passes_only_the_validated_id() {
+        let id = SessionId::parse("0E416F3E-5EA8-4E2A-B52C-919125B2C55E").unwrap();
+        let mode = LaunchMode::Resume(id);
+        let s = launcher_script(None, "C:/x/claude.exe", "Perso", None, &mode);
+        assert!(
+            s.ends_with("& 'C:/x/claude.exe' --resume 0e416f3e-5ea8-4e2a-b52c-919125b2c55e\r\n")
+        );
+        assert_eq!(mode.launcher_suffix(), "-resume");
+        assert_eq!(LaunchMode::Interactive.launcher_suffix(), "");
     }
 }

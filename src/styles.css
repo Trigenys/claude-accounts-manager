@@ -1246,3 +1246,95 @@ fieldset:disabled label,
 [aria-disabled="true"] {
   cursor: not-allowed;
 }
+
+/* Conversations of an account */
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sessions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sessions-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.sessions-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.sessions-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--text-2);
+}
+
+.sessions-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  user-select: text;
+}
+
+.sessions-search input:focus-visible {
+  outline: none;
+}
+
+.sessions-search:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.sessions-tools select {
+  max-width: 40%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--fill);
+}
+
+.sessions-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.session-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 520;
+}
+
+.session-meta {
+  color: var(--text-2);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row .btn {
+  flex: none;
+}
