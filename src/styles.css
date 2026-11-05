@@ -67,6 +67,13 @@ select {
   color: inherit;
 }
 
+/* The native dropdown list is opaque: inherited text color (white in dark mode) must not
+   land on the system's light list background. Canvas/CanvasText follow color-scheme. */
+option {
+  background: Canvas;
+  color: CanvasText;
+}
+
 :focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 2px;
