@@ -3,11 +3,12 @@
 //! Asks Claude Code itself through its SDK control protocol (`get_usage`, the data behind `/usage`):
 //! no prompt is sent to a model, so nothing is consumed, and this app never reads the login token.
 
+use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, mpsc};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -17,6 +18,18 @@ use crate::statusline::{self, Limit, ScopedLimit, Snapshot};
 pub const INTERVAL: Duration = Duration::from_secs(180);
 const TIMEOUT: Duration = Duration::from_secs(90);
 const REQUEST_ID: &str = "cam-usage";
+/// Grace period for Claude Code to exit by itself once stdin is closed (lets it finish writing its config).
+const EXIT_GRACE: Duration = Duration::from_secs(5);
+pub const EXPIRED_MSG: &str =
+    "session Claude Code expirée : ouvrez Claude Code dans ce compte et tapez /login";
+
+/// Outcome of one `get_usage` control response.
+#[derive(Debug)]
+pub enum Readout {
+    Usage(Snapshot),
+    /// Claude Code answered but has no subscription for this profile: credentials expired or revoked.
+    LoggedOut,
+}
 
 #[derive(Deserialize)]
 struct Row {
@@ -44,13 +57,23 @@ fn epoch(iso: &Option<String>) -> Option<i64> {
 }
 
 /// Reads the `get_usage` control response (one stdout line of the stream-json protocol).
-pub fn parse_response(line: &str, now: DateTime<Utc>) -> Option<Snapshot> {
+pub fn parse_response(line: &str, now: DateTime<Utc>) -> Option<Readout> {
     let v: serde_json::Value = serde_json::from_str(line).ok()?;
     let r = v
         .get("response")
         .filter(|r| r.get("request_id").and_then(|i| i.as_str()) == Some(REQUEST_ID))?;
-    let rows: Vec<Row> =
-        serde_json::from_value(r.pointer("/response/rate_limits/limits")?.clone()).ok()?;
+    let Some(limits) = r.pointer("/response/rate_limits/limits") else {
+        let body = r.get("response");
+        let no_sub = body
+            .and_then(|b| b.get("subscription_type"))
+            .is_none_or(|t| t.is_null());
+        let unavailable = body
+            .and_then(|b| b.get("rate_limits_available"))
+            .and_then(|a| a.as_bool())
+            == Some(false);
+        return (no_sub || unavailable).then_some(Readout::LoggedOut);
+    };
+    let rows: Vec<Row> = serde_json::from_value(limits.clone()).ok()?;
     let mut s = Snapshot {
         captured_at: now.timestamp(),
         five_hour: None,
@@ -87,7 +110,21 @@ pub fn parse_response(line: &str, now: DateTime<Utc>) -> Option<Snapshot> {
             }
         }
     }
-    Some(s)
+    Some(Readout::Usage(s))
+}
+
+/// Closes stdin and gives the CLI a moment to exit cleanly; kills it only past the grace period.
+fn finish(mut child: Child, grace: Duration) {
+    drop(child.stdin.take());
+    let deadline = Instant::now() + grace;
+    while Instant::now() < deadline {
+        if let Ok(Some(_)) = child.try_wait() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 /// One readout through the CLI, for the profile at `config_dir` (`is_default`: `~/.claude`, no override).
@@ -123,8 +160,9 @@ pub fn fetch(cli: &Path, config_dir: &Path, is_default: bool) -> Result<Snapshot
     let request = format!(
         r#"{{"type":"control_request","request_id":"{REQUEST_ID}","request":{{"subtype":"get_usage"}}}}"#
     );
-    if let Some(mut stdin) = child.stdin.take() {
+    if let Some(stdin) = child.stdin.as_mut() {
         let _ = writeln!(stdin, "{request}");
+        let _ = stdin.flush();
     }
     let stdout = child
         .stdout
@@ -139,13 +177,40 @@ pub fn fetch(cli: &Path, config_dir: &Path, is_default: bool) -> Result<Snapshot
         let _ = tx.send(found);
     });
     let result = rx.recv_timeout(TIMEOUT);
-    let _ = child.kill();
-    let _ = child.wait();
+    let grace = if result.is_ok() {
+        EXIT_GRACE
+    } else {
+        Duration::ZERO
+    };
+    finish(child, grace);
     match result {
-        Ok(Some(s)) => Ok(s),
-        Ok(None) => Err("Claude Code n'a pas renvoyé de quotas (compte non connecté ?)".into()),
+        Ok(Some(Readout::Usage(s))) => Ok(s),
+        Ok(Some(Readout::LoggedOut)) => Err(EXPIRED_MSG.into()),
+        Ok(None) => Err("Claude Code s'est arrêté sans renvoyer de quotas".into()),
         Err(_) => Err("Claude Code n'a pas répondu à temps".into()),
     }
+}
+
+/// Profiles whose last readout found the session expired (cleared by the next successful readout).
+static EXPIRED: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
+
+fn mark(dir: &Path, expired: bool) {
+    let mut g = EXPIRED.lock().unwrap_or_else(|p| p.into_inner());
+    let set = g.get_or_insert_with(HashSet::new);
+    if expired {
+        set.insert(dir.to_path_buf());
+    } else {
+        set.remove(dir);
+    }
+}
+
+/// True when the last readout of this profile reported an expired Claude Code session.
+pub fn session_expired(dir: &Path) -> bool {
+    EXPIRED
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .as_ref()
+        .is_some_and(|s| s.contains(dir))
 }
 
 /// CLI path and the logged-in profiles to read: `(config_dir, is_default)`.
@@ -169,10 +234,16 @@ pub fn refresh_all((cli, profiles): &Targets) -> Vec<(PathBuf, String)> {
                     .unwrap_or_else(|_| Err("relevé interrompu".into()))
                 {
                     Ok(s) => {
+                        mark(dir, false);
                         statusline::write(dir, &s);
                         None
                     }
-                    Err(e) => Some((dir.clone(), e)),
+                    Err(e) => {
+                        if e == EXPIRED_MSG {
+                            mark(dir, true);
+                        }
+                        Some((dir.clone(), e))
+                    }
                 }
             })
             .collect()
@@ -209,7 +280,9 @@ mod tests {
 
     #[test]
     fn reads_session_weekly_and_model_rows() {
-        let s = parse_response(RESPONSE, Utc::now()).unwrap();
+        let Some(Readout::Usage(s)) = parse_response(RESPONSE, Utc::now()) else {
+            panic!("usage expected");
+        };
         assert_eq!(s.five_hour.as_ref().unwrap().used_percentage, 30.0);
         assert_eq!(s.five_hour.unwrap().resets_at, 1_793_701_800);
         assert_eq!(s.seven_day.unwrap().used_percentage, 22.0);
@@ -233,6 +306,30 @@ mod tests {
             vec![PathBuf::from("Z:/a"), PathBuf::from("Z:/b")]
         );
         assert!(refresh_all(&(t.0, Vec::new())).is_empty());
+    }
+
+    #[test]
+    fn detects_logged_out_profile() {
+        let out = r#"{"type":"control_response","response":{"subtype":"success","request_id":"cam-usage","response":{"subscription_type":null,"rate_limits_available":false}}}"#;
+        assert!(matches!(
+            parse_response(out, Utc::now()),
+            Some(Readout::LoggedOut)
+        ));
+        let sub_only = out.replace("null", "\"pro\"");
+        assert!(matches!(
+            parse_response(&sub_only, Utc::now()),
+            Some(Readout::LoggedOut)
+        ));
+    }
+
+    #[test]
+    fn expired_flag_follows_last_readout() {
+        let d = PathBuf::from("Z:/expired-flag-test");
+        assert!(!session_expired(&d));
+        mark(&d, true);
+        assert!(session_expired(&d));
+        mark(&d, false);
+        assert!(!session_expired(&d));
     }
 
     #[test]

@@ -160,7 +160,12 @@ fn ensure_cli_profile(state: State<AppState>, id: String) -> AppResult<ProfileSt
 }
 
 #[tauri::command]
-fn launch_cli(state: State<AppState>, id: String, cwd: Option<String>) -> AppResult<()> {
+fn launch_cli(
+    state: State<AppState>,
+    id: String,
+    cwd: Option<String>,
+    login: Option<bool>,
+) -> AppResult<()> {
     state.ensure_real_paths()?;
     let s = store::load(&state.dir)?;
     let a = find(&s, &id)?;
@@ -170,7 +175,7 @@ fn launch_cli(state: State<AppState>, id: String, cwd: Option<String>) -> AppRes
     )?;
     let cli = claude::detect_cli(s.settings.cli_path_override.as_deref(), &claude::home()?)?;
     let cwd = cwd.map(PathBuf::from).unwrap_or(claude::home()?);
-    claude::launch_cli(&a, &cli, &state.dir, &cwd)
+    claude::launch_cli(&a, &cli, &state.dir, &cwd, login.unwrap_or(false))
 }
 
 #[tauri::command]
@@ -257,6 +262,7 @@ fn profile_status(state: State<AppState>, id: String) -> AppResult<ProfileState>
         config_dir: dir.display().to_string(),
         is_default: a.config_dir.is_none(),
         logged_in: claude::logged_in(&dir),
+        session_expired: quota::session_expired(&dir),
         ..Default::default()
     })
 }

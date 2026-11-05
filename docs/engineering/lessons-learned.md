@@ -26,3 +26,11 @@
 - **Résolution** : modifications par remplacement exact tolérant ; le déploiement normalise en LF (`tr -d '\r'`) avant de hacher et d'envoyer le relais et l'unité systemd.
 - **Prévention** : le second `--plan` après un apply doit annoncer « inchangé » pour le relais, sinon la normalisation a régressé.
 - **Leçon** : toute comparaison d'état entre le poste et un serveur doit porter sur un contenu normalisé, jamais sur les octets de la copie de travail.
+
+## 2026-11-05 — « Connecté » affiché pour un compte dont la session avait expiré
+
+**Contexte :** deux comptes affichaient « Connecté » alors que le relevé échouait avec « compte non connecté ? ».
+**Cause racine :** l'état de connexion se déduisait de la seule présence de `.credentials.json` ; une session expirée ou révoquée garde le fichier. Le relevé tuait en plus le CLI en cours d'écriture, laissant des `.claude.json.tmp.*`.
+**Résolution :** `quota::parse_response` distingue une réponse sans abonnement (`Readout::LoggedOut`) ; le dernier relevé alimente `sessionExpired` affiché dans l'UI ; le CLI reçoit un EOF et 5 s pour sortir avant d'être tué.
+**Prévention :** tests `detects_logged_out_profile` et `expired_flag_follows_last_readout`.
+**Leçon :** un fichier présent ne prouve pas un état valide ; dériver un état de la dernière réponse faisant autorité.
