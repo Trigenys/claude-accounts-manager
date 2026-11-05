@@ -3,11 +3,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Plus, Square, X, Terminal, AppWindow, Pencil, LayoutGrid, Check, KeyRound, Info, RefreshCw } from "lucide-react";
-import { Account, AccountInput, api, errorMessage, PLAN_LABEL, UsageSummary } from "./api";
+import { Account, AccountInput, api, errorMessage, PLAN_LABEL, SessionInfo, UsageSummary } from "./api";
 import { levelColor, Rings } from "./components/Rings";
 import { AccountSheet } from "./components/AccountSheet";
 import { Splash } from "./components/Splash";
 import { AlertsPopover } from "./components/AlertsPopover";
+import { SessionsSection } from "./components/SessionsSection";
 import { daysUntil, longDate, money, relativeTime, tokens } from "./format";
 
 type View = { kind: "overview" } | { kind: "account"; id: string };
@@ -178,6 +179,7 @@ export default function App() {
                       "Connexion ouverte : terminez-la dans le navigateur, puis actualisez les quotas",
                     )
                   }
+                  onResume={(s) => run(() => api.resumeSession(current.id, s.id), "Conversation reprise dans un terminal")}
                   onLaunchDesktop={() => run(() => api.launchDesktop(current.id), "Claude Desktop lancé")}
                   onMakePersistent={() =>
                     run(() => api.setPersistentProfile(current.id), `${current.label} est le compte par défaut des nouveaux terminaux`)
@@ -399,6 +401,7 @@ function AccountDetail(props: {
   onEdit: () => void;
   onLaunchCli: () => void;
   onReconnect: () => void;
+  onResume: (s: SessionInfo) => void;
   onLaunchDesktop: () => void;
   onMakePersistent: () => void;
 }) {
@@ -517,6 +520,8 @@ function AccountDetail(props: {
           </span>
         </div>
       </div>
+
+      <SessionsSection accountId={a.id} onResume={props.onResume} />
     </section>
   );
 }
